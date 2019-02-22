@@ -1,4 +1,10 @@
 <?php
+/*
+ *  TotalGest - Softcodex Sagl  *
+ *  Antonio Norman 21 feb 2019  *
+ *  findIncompatibleChildClassMethods.php :  *
+ */
+
 /**
  * Description of findIncompatibleChildClassMethods
  *
@@ -113,7 +119,11 @@ class FindIncompatibleChildClassMethods
 			$methods = $class->getMethods();
 			/** @var Method[]  $methods */
 			$i		 = 0;
-			ob_start();
+
+			ob_start( function( $buffer ) use ( $class ) {
+				return PHP_EOL . "<br> <b>{$class->getName()}</b>" . $buffer;
+			});
+
 			foreach ( $methods as $method ) {
 				$fails		 = 0;
 				$warnings	 = 0;
@@ -142,7 +152,6 @@ class FindIncompatibleChildClassMethods
 				}
 
 				if ($fails > 0 || $warnings > 0 || debug::$level > 2 ) {
-					debug::out( $class->getName(), 1 );
 					ob_flush();
 				}
 
@@ -170,8 +179,7 @@ class FindIncompatibleChildClassMethods
 		return null;
 	}
 
-	protected function checkMethodVisibility( Method $childMethod,
-		Method $parentMethod ): bool
+	protected function checkMethodVisibility( Method $childMethod, Method $parentMethod ): bool
 	{
 		$visiblity = [
 			'public'	 => 1,
@@ -195,8 +203,7 @@ class FindIncompatibleChildClassMethods
 		return true;
 	}
 
-	protected function checkMethodStaticissity( Method $childMethod,
-		Method $parentMethod ): bool
+	protected function checkMethodStaticissity( Method $childMethod, Method $parentMethod ): bool
 	{
 		if ( $childMethod->isStatic() !== $parentMethod->isStatic() ) {
 
@@ -208,8 +215,7 @@ class FindIncompatibleChildClassMethods
 		return true;
 	}
 
-	protected function checkMethodCompatablity( Method $childMethod,
-		Method $parentMethod ): int
+	protected function checkMethodCompatablity( Method $childMethod, Method $parentMethod ): int
 	{
 
 		$warnings = 0;
@@ -365,9 +371,9 @@ class ClassInfo
 		for ( $i = 0, $len = count( $matches[0] ); $i < $len; $i ++  ) {
 
 			$parameter = new Parameter();
-			$parameter->setName( $matches[3][$i] )
-				->setPassByRef( $matches[2][$i] === '&' )
-				->setTypeHint( $matches[1][$i] );
+			$parameter	->setName( $matches[3][$i] )
+						->setPassByRef( $matches[2][$i] === '&' )
+						->setTypeHint( $matches[1][$i] );
 
 			$method->addParameter( $parameter );
 		}
@@ -598,5 +604,5 @@ class StopWatch
 
 // 0 - 4
 debug::$level	 = 1;
-$test			 = new FindIncompatibleChildClassMethods( '.', '\.php' );
+$test			 = new FindIncompatibleChildClassMethods( '../modules/', '\.php' );
 $test->run();
