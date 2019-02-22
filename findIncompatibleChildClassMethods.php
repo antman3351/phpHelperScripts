@@ -1,10 +1,4 @@
 <?php
-/*
- *  TotalGest - Softcodex Sagl  *
- *  Antonio Norman 21 feb 2019  *
- *  findIncompatibleChildClassMethods.php :  *
- */
-
 /**
  * Description of findIncompatibleChildClassMethods
  *
