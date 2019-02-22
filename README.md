@@ -10,3 +10,4 @@ Looks for issues with methods of child classes. I wrote the script because when 
 Place in the folder where you want to scan and execute the script.
 On the last few lines you can change the debug level (0-4) `debug::$level = 1;` for more or less info and the folder/file extention
 `$test = new FindIncompatibleChildClassMethods( '../', '\.php' );` (note the extention is a regex).
+Warning: It only works with 1 class per file
