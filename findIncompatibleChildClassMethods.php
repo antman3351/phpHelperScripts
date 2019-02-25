@@ -1,7 +1,5 @@
 <?php
 /**
- * Description of findIncompatibleChildClassMethods
- *
  * @author antonio
  */
 class debug
@@ -106,13 +104,10 @@ class FindIncompatibleChildClassMethods
 	{
 		foreach ( $this->classes as $class ) {
 
-			if ( ! $class->extendsAClass() ) {
-				continue;
-			}
+
 
 			$methods = $class->getMethods();
 			/** @var Method[]  $methods */
-			$i		 = 0;
 
 			ob_start( function( $buffer ) use ( $class ) {
 				return PHP_EOL . "<br> <b>{$class->getName()}</b>" . $buffer;
@@ -122,21 +117,18 @@ class FindIncompatibleChildClassMethods
 				$fails		 = 0;
 				$warnings	 = 0;
 
-				$parentMethod = $this->findParentMethod( $method, $class );
+				$this->allMethodsTests($method, $fails, $warnings);
 
-				if ( $parentMethod === null ) {
-					continue;
+				if ( $class->extendsAClass() ) {
+
+					$parentMethod = $this->findParentMethod( $method, $class );
+
+					if ( $parentMethod !== null ) {
+
+						$this->methodsOverloadedTests( $method, $parentMethod, $fails, $warnings );
+					}
+
 				}
-
-				if ( ! $this->checkMethodVisibility( $method, $parentMethod ) ) {
-					$fails ++;
-				}
-
-				if ( ! $this->checkMethodStaticissity( $method, $parentMethod ) ) {
-					$fails ++;
-				}
-
-				$warnings = $this->checkMethodCompatablity( $method, $parentMethod );
 
 				if ( $fails > 0 || $warnings > 0 ) {
 
@@ -158,6 +150,72 @@ class FindIncompatibleChildClassMethods
 		return $this;
 	}
 
+
+	/**
+	 * Checks to be run only on overloaded classes
+	 * @param Method $method
+	 * @param Method $parentMethod
+	 * @param int $fails
+	 * @param int $warnings
+	 * @return void
+	 */
+	protected function methodsOverloadedTests( Method $method, Method $parentMethod, &$fails, &$warnings ) : void
+	{
+		if ( ! $this->checkMethodVisibility( $method, $parentMethod ) ) {
+			$fails ++;
+		}
+
+		if ( ! $this->checkMethodStaticissity( $method, $parentMethod ) ) {
+			$fails ++;
+		}
+
+		$warnings = $warnings + $this->checkMethodCompatablity( $method, $parentMethod );
+
+		return;
+	}
+
+	/**
+	 * Checks to be run on every method of every class
+	 * @param Method $method
+	 * @param int $fails
+	 * @param int $warnings
+	 * @return void
+	 */
+	protected function allMethodsTests( Method $method, &$fails, &$warnings ) : void
+	{
+		$warnings = $warnings + $this->checkOnlyVariablesShouldBePassByRef( $method );
+
+		return;
+	}
+
+	/**
+	 * Checks only type-hinted scalar values are pass by reference
+	 * @param Method $method
+	 * @return int warnings count
+	 */
+	protected function checkOnlyVariablesShouldBePassByRef( Method $method ) : int
+	{
+		$validVariablesTypes = ['array', 'bool', 'float', 'int', 'string'];
+
+		$warnings = 0;
+		foreach ( $method->getParameters() as $parameter ){
+			/** @var Parameter $parameter */
+			if ( $parameter->getPassByRef() && ! empty( $parameter->getTypeHint() ) && ! in_array( $parameter->getTypeHint(), $validVariablesTypes) ) {
+
+				$warnings ++;
+				debug::out( "Method {$method->getName()} ({$parameter->getTypeHint()} {$parameter->getName()})  Only variables should be passed by reference [WARNING]", 0 );
+			}
+		}
+
+		return $warnings;
+	}
+
+	/**
+	 * Looks for a parent (overloaded) method
+	 * @param Method $method
+	 * @param ClassInfo $class
+	 * @return \Method|null
+	 */
 	protected function findParentMethod( Method $method, ClassInfo $class ): ?Method
 	{
 		while ( ! empty( ( $parent = $class->getParent() ) ) ) {
