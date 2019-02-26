@@ -274,8 +274,11 @@ class FindIncompatibleChildClassMethods
 
 		debug::out( "<i>Method {$childMethod->getName()}</i>", 0);
 
-		if ( $childMethod->getParameterCount() < $parentMethod->getParameterCount() ) {
 
+		if ( $childMethod->getParameterCount() < $parentMethod->getParameterCount() ) {
+if ($childMethod->getName() === 'operation'){
+	var_dump([$childMethod,$parentMethod]);
+}
 			debug::out( "Has less parameters than parent [WARNING]", 0 );
 			$warnings ++;
 		}
@@ -431,7 +434,7 @@ class ClassInfo
 
 	protected function extractMethods( string $source ): array
 	{
-		$hasMethods = preg_match_all( '/^\s*(?<![\*\/])(public|private|protected)?\s*(static)?\s*function\s+(\w*)\s*\((.*)\)*/im', $source, $matches );
+		$hasMethods = preg_match_all( '/^\s*(?<![\*\/])(public|private|protected)?\s*(static)?\s*function\s+(\w*)\s*\((.*)\)/im', $source, $matches );
 
 		$methods = [];
 		for ( $i = 0, $len = count( $matches[0] ); $i < $len; $i ++  ) {
