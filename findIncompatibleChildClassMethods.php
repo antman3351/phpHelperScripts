@@ -29,8 +29,7 @@ class FindIncompatibleChildClassMethods
 	protected $warnings		 = 0;
 	protected $failedClass	 = [];
 
-	public function __construct( string $startDir = '.',
-		string $fileExtention = '\.php' )
+	public function __construct( string $startDir = '.', string $fileExtention = '\.php' )
 	{
 		$this->startDir		 = $startDir;
 		$this->fileExtention = $fileExtention;
@@ -104,8 +103,6 @@ class FindIncompatibleChildClassMethods
 	{
 		foreach ( $this->classes as $class ) {
 
-
-
 			$methods = $class->getMethods();
 			/** @var Method[]  $methods */
 
@@ -114,6 +111,12 @@ class FindIncompatibleChildClassMethods
 			});
 
 			foreach ( $methods as $method ) {
+
+				if ($method->getName() === '__construct' ) {
+
+					continue;
+				}
+
 				$fails		 = 0;
 				$warnings	 = 0;
 
