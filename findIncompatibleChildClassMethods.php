@@ -271,40 +271,78 @@ class FindIncompatibleChildClassMethods
 	{
 
 		$warnings = 0;
-		if ( $childMethod->getParameterCount() !== $parentMethod->getParameterCount() ) {
 
-			debug::out( "Method {$childMethod->getName()} doesn't have the same amount of parameters as parent [WARNING]", 0 );
+		debug::out( "<i>Method {$childMethod->getName()}</i>", 0);
+
+		if ( $childMethod->getParameterCount() < $parentMethod->getParameterCount() ) {
+
+			debug::out( "Has less parameters than parent [WARNING]", 0 );
 			$warnings ++;
 		}
 
 		$childParameters	 = $childMethod->getParameters();
 		$parentParameters	 = $parentMethod->getParameters();
+
+		$childHasMoreParameters = $childMethod->getParameterCount() > $parentMethod->getParameterCount();
+
 		for ( $i = 0, $len = $childMethod->getParameterCount(); $i < $len; $i ++ ) {
 
-			if ( ! isset( $childParameters[$i] ) || ! isset( $parentParameters[$i] ) ) {
+			$childParameter	= $childParameters[$i];
+			$parentParameter = $parentParameters[$i] ?? null;
 
-				break;
+			if ( $childHasMoreParameters ) {
+
+				$this->checkMethodParameterMoreInChild( $childParameter, $parentParameter, $warnings );
 			}
 
-			$childParameter	 = $childParameters[$i];
-			$parentParameter = $parentParameters[$i];
 
-			/** @var Parameter $childParameter */
-			if ( $childParameter->getTypeHint() !== $parentParameter->getTypeHint() ) {
+			if ( $parentParameter !== null ) {
 
-				debug::out( "Method {$childMethod->getName()} parameter ( {$childParameter->getTypeHint()} \${$childParameter->getName()} ) doesn't have the same type hint as parent ( {$parentParameter->getTypeHint()} \${$parentParameter->getName()} ) [WARNING]", 0 );
-				$warnings ++;
+				$this->checkMethodParameterTypeHint( $childParameter, $parentParameter, $warnings );
+				$this->checkMethodParametePassByRef( $childParameter, $parentParameter, $warnings );
 			}
 
-			if ( $childParameter->getPassByRef() !== $parentParameter->getPassByRef() ) {
-
-				debug::out( "Method {$childMethod->getName()} parameter ( {$childParameter->getTypeHint()} \${$childParameter->getName()} ) is pass by " . ( $childParameter->getPassByRef() ? 'reference' : 'value' )
-					. " where parent is " . ( $parentParameter->getPassByRef() ? 'reference' : 'value' ) . " [WARNING]", 0 );
-				$warnings ++;
-			}
 		}
 
 		return $warnings;
+	}
+
+	protected function checkMethodParameterMoreInChild ( Parameter $childParameter, ? Parameter $parentParameter, &$warnings ) : void
+	{
+		if ( $parentParameter !== null ) {
+			return;
+		}
+
+		if ( $childParameter->hasDefaultValue() ) {
+			return;
+		}
+
+		debug::out( "Has more parameters {$childParameter->getName()} (without default value) than parent [WARNING]", 0 );
+		$warnings ++;
+	}
+
+
+	protected function checkMethodParameterTypeHint ( Parameter $childParameter, Parameter $parentParameter, &$warnings ) : void
+	{
+		if ( $childParameter->getTypeHint() !== $parentParameter->getTypeHint() ) {
+
+			debug::out( "Parameter ( {$childParameter->getTypeHint()} \${$childParameter->getName()} ) doesn't have the same type hint as parent ( {$parentParameter->getTypeHint()} \${$parentParameter->getName()} ) [WARNING]", 0 );
+			$warnings ++;
+		}
+
+		return;
+	}
+
+	protected function checkMethodParametePassByRef ( Parameter $childParameter, Parameter $parentParameter, &$warnings ) : void
+	{
+		if ( $childParameter->getPassByRef() !== $parentParameter->getPassByRef() ) {
+
+			debug::out( "Parameter ( {$childParameter->getTypeHint()} \${$childParameter->getName()} ) is pass by " . ( $childParameter->getPassByRef() ? 'reference' : 'value' )
+				. " where parent is " . ( $parentParameter->getPassByRef() ? 'reference' : 'value' ) . " [WARNING]", 0 );
+			$warnings ++;
+		}
+
+		return;
 	}
 
 	protected function outputResults()
@@ -393,7 +431,7 @@ class ClassInfo
 
 	protected function extractMethods( string $source ): array
 	{
-		$hasMethods = preg_match_all( '/^\s*(?<![\*\/])(public|private|protected)?\s*(static)?\s*function\s+(\w*)[\s\$\,\[\]\w\$\(\=\)\&]*/im', $source, $matches );
+		$hasMethods = preg_match_all( '/^\s*(?<![\*\/])(public|private|protected)?\s*(static)?\s*function\s+(\w*)\s*\((.*)\)*/im', $source, $matches );
 
 		$methods = [];
 		for ( $i = 0, $len = count( $matches[0] ); $i < $len; $i ++  ) {
@@ -402,7 +440,7 @@ class ClassInfo
 				->setStatic( strtolower( $matches[2][$i] ) === 'static' )
 				->setVisibility( empty( $matches[1][$i] ) ? 'public' : strtolower( $matches[1][$i] )  );
 
-			$this->extractMethodParameters( $matches[0][$i], $method );
+			$this->extractMethodParameters( $matches[4][$i], $method );
 
 			$methods[$matches[3][$i]] = $method;
 		}
@@ -417,7 +455,7 @@ class ClassInfo
 
 	protected function extractMethodParameters( string $methodLine, Method $method ): Method
 	{
-		preg_match_all( '/(\w*)\s?(\&)?\s*\$(\w+)/im', $methodLine, $matches );
+		preg_match_all( '/(\w*)?\s*(\&)?\s*\$(\w+)(\s*\=+\s*(\'.*\'|\d+|null|true|false))?/im', $methodLine, $matches );
 		$parameters = [];
 
 		for ( $i = 0, $len = count( $matches[0] ); $i < $len; $i ++  ) {
@@ -425,7 +463,8 @@ class ClassInfo
 			$parameter = new Parameter();
 			$parameter	->setName( $matches[3][$i] )
 						->setPassByRef( $matches[2][$i] === '&' )
-						->setTypeHint( $matches[1][$i] );
+						->setTypeHint( $matches[1][$i] )
+						->setDefaultValue( $matches[5][$i] );
 
 			$method->addParameter( $parameter );
 		}
@@ -513,7 +552,7 @@ class Method
 
 	public function setName( string $name )
 	{
-		$this->name = $name;
+		$this->name = trim($name);
 		return $this;
 	}
 
@@ -542,6 +581,7 @@ class Parameter
 	protected $name;
 	protected $passByRef;
 	protected $typeHint;
+	protected $defaultValue;
 
 	public function getName(): string
 	{
@@ -576,6 +616,23 @@ class Parameter
 		$this->typeHint = empty( $typeHint ) ? null : $typeHint;
 		return $this;
 	}
+
+	public function getDefaultValue() : string
+	{
+		return $this->defaultValue ?? null;
+	}
+
+	public function setDefaultValue( ?string $defaultValue )
+	{
+		$this->defaultValue = $defaultValue;
+		return $this;
+	}
+
+	public function hasDefaultValue() : bool
+	{
+		return $this->defaultValue !== '';
+	}
+
 }
 
 class FileFinder
